@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peotran QC — Model Stats</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect width=%2216%22 height=%2216%22 fill=%22%230a0f0a%22/><text x=%228%22 y=%2212%22 font-size=%2211%22 text-anchor=%22middle%22 fill=%22%233dff5a%22>&gt;</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-stats">
+<div class="crt-shell">
+
+  <div class="titlebar">
+    <span class="titlebar-text"><span class="brand-word">PEOTRAN</span>_QC.EXE — <span data-i18n="titlebar.stats">Model Stats</span></span>
+    <span class="titlebar-controls">
+      <span class="tb-toggle" id="btn-music-toggle" data-i18n-title="toggle.music" title="Toggle background music">MUSIC: ON</span>
+      <span class="tb-toggle" id="btn-lang-toggle" data-lang-label data-i18n-title="toggle.lang" title="Switch language">TIẾNG VIỆT</span>
+      <span class="tb-toggle" id="btn-theme-toggle" data-theme-label data-i18n-title="toggle.theme" title="Toggle dark mode">DARK</span>
+      <span class="tb-btn">_</span><span class="tb-btn">&#9633;</span><span class="tb-btn">&times;</span>
+    </span>
+  </div>
+  <div class="toolbar">
+    <a href="index.html" data-i18n="nav.playground" data-i18n-hint="nav.playground.hint">01_PLAYGROUND</a>
+    <a href="stats.html" class="active" data-i18n="nav.stats" data-i18n-hint="nav.stats.hint">02_MODEL_STATS</a>
+    <a href="https://github.com/" target="_blank" rel="noopener" data-i18n="nav.source" data-i18n-hint="nav.source.hint">03_SOURCE</a>
+  </div>
+
+  <div class="status-line">
+    <span><span class="dot"></span><span data-i18n="status.online">SYSTEM ONLINE</span></span>
+    <span id="stat-models">MODELS LOADED: --</span>
+    <span class="status-hint" id="status-hint" data-i18n="status.statsHint">21 classical (7 features × 3 classifiers) + 1 deep learning (ResNet18) — test-set metrics.</span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="datasetOverview.title">DATASET OVERVIEW</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="datasetOverview.subtitle">(held-out test split, 715 images)</span></div>
+    <div class="panel-body" id="dataset-overview-body">
+      <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="modelComparison.title">MODEL COMPARISON</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="modelComparison.subtitle">click a row for the full spec</span></div>
+    <div class="panel-body">
+      <div class="table-scroll">
+        <table class="data-table" id="model-table">
+          <thead>
+            <tr>
+              <th data-key="rank" data-i18n="col.rank">#</th>
+              <th data-key="display_name" data-i18n="col.model">MODEL</th>
+              <th data-key="type" data-i18n="col.type">TYPE</th>
+              <th data-key="test_accuracy" data-i18n="col.accuracy">ACCURACY</th>
+              <th data-key="test_precision" data-i18n="col.precision">PRECISION</th>
+              <th data-key="test_recall" data-i18n="col.recall">RECALL</th>
+              <th data-key="test_f1" data-i18n="col.f1">F1</th>
+              <th data-key="test_roc_auc" data-i18n="col.rocauc">ROC AUC</th>
+              <th data-key="supports_gradcam" data-i18n="col.gradcam">GRAD-CAM</th>
+            </tr>
+          </thead>
+          <tbody id="model-table-body">
+            <tr><td colspan="9" class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="confusionPanel.title">CONFUSION MATRIX</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="confusionPanel.subtitle">computed live from real test-set predictions</span></div>
+    <div class="panel-body">
+      <div class="cm-align">
+        <div class="record-nav" style="margin-bottom:10px;">
+          <label class="field-label" style="margin:0;" data-i18n="inference.modelLabel">MODEL:</label>
+          <select id="cm-model-select" data-i18n-hint="confusionPanel.selectHint"></select>
+        </div>
+        <div id="cm-container">
+          <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" data-i18n="testAccuracy.title">TEST ACCURACY — ALL MODELS, RANKED</div>
+    <div class="panel-body" id="chart-body">
+      <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="featureTable.title">CLASSICAL: FEATURE × CLASSIFIER</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="featureTable.subtitle">(test F1)</span></div>
+    <div class="panel-body">
+      <div id="feature-table-body">
+        <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+      </div>
+      <div class="evidence-strip" id="evidence-features"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="trainingCurve.title">RESNET18 TRAINING CURVE</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="trainingCurve.subtitle">(10 epochs, real per-epoch numbers)</span></div>
+    <div class="panel-body">
+      <div class="chart-panel-row" id="training-curve-body">
+        <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="brightness.title">BRIGHTNESS DISTRIBUTION</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="brightness.subtitle">def_front vs ok_front · test set, 715 images · box plot</span></div>
+    <div class="panel-body">
+      <div class="chart-panel-row" id="brightness-boxplot-body">
+        <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+      </div>
+      <div class="evidence-strip" id="evidence-brightness"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" data-i18n="sourceFigures.title">SOURCE FIGURES</div>
+    <div class="panel-body" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+      <span class="muted" style="flex:1 1 320px;" data-i18n="sourceFigures.intro">
+        All of the charts on this page are drawn straight from the real numbers behind them, not pasted-in
+        screenshots — that keeps them interactive and visually consistent with the rest of the site. One
+        exception: UMAP needs the actual 512-d/256-d feature vectors plus a fresh UMAP run, neither of
+        which the site ships, so that plot is still a real screenshot below (same for the plain sample
+        photos and the edge/HOG illustrations, which were never charts to begin with). For the exact
+        matplotlib output as it rendered in notebooks 01–09 — as evidence, not a redraw — open the gallery.
+      </span>
+      <button class="btn" type="button" id="btn-view-figures" data-i18n="sourceFigures.btn" data-i18n-hint="sourceFigures.btnHint">VIEW 11 SOURCE FIGURES</button>
+    </div>
+  </div>
+
+  <div class="panel" id="advisory">
+    <div class="panel-title"><span data-i18n="advisoryLog.title">KNOWN LIMITATIONS &amp; ADVISORY LOG</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="advisoryLog.subtitle">(hover (i) for the full write-up)</span></div>
+    <div class="panel-body">
+
+      <div class="advisory-row">
+        <div class="advisory-title" data-i18n="advisory.brightness.title">BRIGHTNESS CONFOUND (ALL MODELS)</div>
+        <span class="muted" style="flex:2 1 300px;" data-i18n="advisory.brightness.short">def_front images run about 10–11 intensity levels darker; accuracy collapses to ~63% once brightness is equalized.</span>
+        <span class="tooltip-wrap" data-tooltip-i18n="advisory.brightness.full">
+          <button class="info-btn" type="button" data-i18n="advisoryLog.fullWriteup">(i) FULL WRITE-UP</button>
+        </span>
+      </div>
+
+      <div class="advisory-row">
+        <div class="advisory-title" data-i18n="advisory.rawpixels.title">RAW PIXELS: 64×64, NOT 224×224</div>
+        <span class="muted" style="flex:2 1 300px;" data-i18n="advisory.rawpixels.short">Downsized to dodge a scikit-learn float64 conversion that was crashing the training machine.</span>
+        <span class="tooltip-wrap" data-tooltip-i18n="advisory.rawpixels.full">
+          <button class="info-btn" type="button" data-i18n="advisoryLog.fullWriteup">(i) FULL WRITE-UP</button>
+        </span>
+      </div>
+
+      <div class="advisory-row">
+        <div class="advisory-title" data-i18n="advisory.effnet.title">WHY NO EFFICIENTNET-B0</div>
+        <span class="muted" style="flex:2 1 300px;"><span data-i18n="advisory.effnet.short">Crashed Peotran's machine and made Peotran sad</span> <span class="frown">:(</span></span>
+        <span class="tooltip-wrap" data-tooltip-i18n="advisory.effnet.full">
+          <button class="info-btn" type="button" data-i18n="advisoryLog.fullWriteup">(i) FULL WRITE-UP</button>
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="crt-footer">
+    <span data-i18n="footer.stats1">PEOTRAN_QC.EXE v1.0 — all metrics computed on the held-out test set (715 images)</span>
+    <span><a href="index.html" data-i18n="footer.stats.back">← BACK TO PLAYGROUND</a></span>
+  </footer>
+
+</div>
+
+<!-- Model detail modal -->
+<div class="modal-backdrop" id="modal-backdrop" hidden>
+  <div class="modal-box">
+    <div class="panel-title">
+      <span id="modal-title">MODEL SPEC</span>
+      <button class="btn small" id="modal-close" data-i18n="modal.close">CLOSE</button>
+    </div>
+    <div class="panel-body modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/music.js"></script>
+<script src="js/stats.js"></script>
+</body>
+</html>

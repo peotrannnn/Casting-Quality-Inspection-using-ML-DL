@@ -163,7 +163,13 @@
       state.models.forEach(function (m) { state.modelsById[m.model_id] = m; });
 
       var hash = readHash();
-      state.selectedModelId = (hash.m && state.modelsById[hash.m]) ? hash.m : state.models[0].model_id;
+      // Default to ResNet18 on first load (no #m= in the URL) - it's the
+      // headline "deep learning" model, not whichever row models.json
+      // happens to list first (that order can shift as rankings change).
+      // Once a person picks a different model, that choice is what
+      // persists (it's written into the URL hash - see selectModel()).
+      var defaultModelId = state.modelsById['resnet18'] ? 'resnet18' : state.models[0].model_id;
+      state.selectedModelId = (hash.m && state.modelsById[hash.m]) ? hash.m : defaultModelId;
       var hi = parseInt(hash.i, 10);
       state.currentIndex = (!isNaN(hi) && hi >= 0 && hi < state.images.length) ? hi : 0;
 
@@ -172,6 +178,7 @@
 
       renderModelList();
       render();
+      resetIdleTimer();
     }).catch(function (err) {
       document.getElementById('model-list').innerHTML =
         '<div class="loading-line" style="color:var(--def);">FAILED TO LOAD DATA: ' + err + '<br>' +
@@ -206,6 +213,7 @@
       row.appendChild(name);
       row.appendChild(tag);
       row.addEventListener('click', function () {
+        resetIdleTimer();
         state.selectedModelId = m.model_id;
         renderModelList();
         // Outcome/confidence filters are model-specific - jump off a record
@@ -227,24 +235,14 @@
      Main render
      --------------------------------------------------------------------- */
 
-  function render() {
-    if (!state.images.length) return;
-
-    var matchCount = updateFilterCount();
-
-    var img = state.images[state.currentIndex];
-    var model = state.modelsById[state.selectedModelId];
-
-    var viewerImg = document.getElementById('viewer-image');
-    if (viewerImg.src.indexOf(img.image) === -1) {
-      viewerImg.style.opacity = '0';
-      var swap = function () {
-        viewerImg.src = img.image;
-        viewerImg.onload = function () { viewerImg.style.opacity = '1'; };
-      };
-      window.setTimeout(swap, 90);
-    }
-    viewerImg.alt = 'Test image, true label ' + img.true_label;
+  /* Paints everything EXCEPT the viewer image itself: caption, jump box,
+     the verdict/confidence panel, and Grad-CAM. Split out from render() so
+     an auto-advance transition can defer this until the dither dissolve
+     has actually finished (see render() below) - otherwise the text and
+     Grad-CAM panel used to snap to the new record instantly while the
+     image was still mid-animation, which read as a jarring, disconnected
+     jump even though the image itself was transitioning smoothly. */
+  function paintInfo(img, model, matchCount) {
     document.getElementById('viewer-caption').textContent =
       T('recordViewer.caption', { n: pad3(state.currentIndex), total: state.images.length - 1, label: labelText(img.true_label) });
     document.getElementById('record-jump').value = state.currentIndex;
@@ -263,6 +261,7 @@
       document.getElementById('v-label').className = 'verdict-label';
       document.getElementById('v-correct').textContent = '--';
       document.getElementById('v-correct').className = 'correctness';
+      document.getElementById('v-emoji-badge').hidden = true;
       document.getElementById('v-conf-bar').style.width = '0%';
       document.getElementById('v-conf-pct').textContent = '--%';
       document.getElementById('v-conf-note').innerHTML = '';
@@ -288,6 +287,7 @@
       document.getElementById('v-conf-bar').style.width = '0%';
       document.getElementById('v-conf-pct').textContent = '--%';
       tierEl.style.display = 'none';
+      document.getElementById('v-emoji-badge').hidden = true;
       document.getElementById('gradcam-body').innerHTML = '<div class="loading-line">NO PREDICTION DATA FOR THIS PAIR.</div>';
       updateHash();
       return;
@@ -301,6 +301,12 @@
     var corrEl = document.getElementById('v-correct');
     corrEl.textContent = correct ? T('inference.correct') : T('inference.wrong');
     corrEl.className = 'correctness ' + (correct ? 'correct' : 'wrong');
+
+    var emojiBadge = document.getElementById('v-emoji-badge');
+    var emojiImg = document.getElementById('v-emoji');
+    emojiImg.src = correct ? 'assets/icons/emoji_correct.png' : 'assets/icons/emoji_wrong.png';
+    emojiImg.alt = correct ? T('inference.correct') : T('inference.wrong');
+    emojiBadge.hidden = false;
 
     var tier = confidenceTier(pred.confidence);
     var confPctStr = pct(pred.confidence);
@@ -331,6 +337,48 @@
 
     renderGradcam(img, model, pred);
     updateHash();
+  }
+
+  function fadeInfoPanels(toOpacity) {
+    var vb = document.querySelector('.verdict-box');
+    var gc = document.getElementById('gradcam-body');
+    if (vb) vb.style.opacity = String(toOpacity);
+    if (gc) gc.style.opacity = String(toOpacity);
+  }
+
+  function render(useDither) {
+    if (!state.images.length) return;
+
+    var matchCount = updateFilterCount();
+
+    var img = state.images[state.currentIndex];
+    var model = state.modelsById[state.selectedModelId];
+
+    var viewerImg = document.getElementById('viewer-image');
+    var needsSwap = viewerImg.src.indexOf(img.image) === -1;
+    viewerImg.alt = 'Test image, true label ' + img.true_label;
+
+    if (needsSwap && useDither) {
+      // Auto-advance: hold the verdict/Grad-CAM panels invisible for the
+      // whole dissolve, then paint the new record's info and fade it back
+      // in at the same moment the image finishes changing - so nothing
+      // updates until the new record is actually fully on screen.
+      fadeInfoPanels(0);
+      ditherSwap(viewerImg, img.image, function () {
+        paintInfo(img, model, matchCount);
+        fadeInfoPanels(1);
+      });
+      return;
+    }
+
+    if (needsSwap) {
+      viewerImg.style.opacity = '0';
+      window.setTimeout(function () {
+        viewerImg.src = img.image;
+        viewerImg.onload = function () { viewerImg.style.opacity = '1'; };
+      }, 90);
+    }
+    paintInfo(img, model, matchCount);
   }
 
   function renderGradcam(img, model, pred) {
@@ -375,10 +423,249 @@
   }
 
   /* ---------------------------------------------------------------------
+     Idle auto-advance: if nobody touches PREV/NEXT/RANDOM/filters/etc. for
+     IDLE_DELAY_MS, the viewer wanders on its own to a random record that
+     still matches whatever filter is active (only when more than one
+     record qualifies - otherwise there's nothing to switch to). The
+     countdown is shown as a filling progress bar under the image (not a
+     silent timer) and every real interaction restarts it from zero; a
+     PAUSE button lets someone turn the whole thing off. Respects
+     prefers-reduced-motion (auto-advance starts disabled and the controls
+     for it are hidden) and skips a tick while the tab is hidden or the
+     lightbox is open, so it doesn't yank the image out from under someone
+     who's zoomed in or tabbed away.
+
+     Manual PREV/NEXT/RANDOM/jump/filter changes always swap the image
+     immediately (render() with no dither) - the 10s bar and the dither
+     dissolve only ever apply to the auto-advance path. */
+
+  var IDLE_DELAY_MS = 10000;
+  var idleTimer = null;
+  var autoAdvanceEnabled = true;
+  var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReducedMotion) autoAdvanceEnabled = false;
+
+  function idleBarEls() {
+    return { track: document.getElementById('idle-bar-track'), fill: document.getElementById('idle-bar-fill') };
+  }
+
+  function stopIdleBar() {
+    // Only used when auto-advance is actually turned off (PAUSE clicked) -
+    // nothing is being timed any more, so the track goes away entirely.
+    var els = idleBarEls();
+    if (!els.track) return;
+    els.track.classList.remove('transitioning');
+    els.fill.style.transition = 'none';
+    els.fill.style.width = '0%';
+    els.track.hidden = true;
+  }
+
+  function freezeIdleBarForTransition() {
+    // Called the instant auto-advance triggers the dissolve. The track
+    // stays visible and full-width (just switches to a pulsing "in
+    // progress" look) instead of hiding - hiding it here used to remove it
+    // from the layout for the ~1.7s of the dissolve, which pulled the nav
+    // buttons/filters up and then dropped them back down once the next
+    // countdown started, and read as the whole viewer "shrinking".
+    var els = idleBarEls();
+    if (!els.track) return;
+    els.track.hidden = false;
+    els.fill.style.transition = 'none';
+    els.fill.style.width = '100%';
+    els.track.classList.add('transitioning');
+  }
+
+  function startIdleBar() {
+    var els = idleBarEls();
+    if (!els.track) return;
+    els.track.classList.remove('transitioning');
+    els.track.hidden = false;
+    els.fill.style.transition = 'none';
+    els.fill.style.width = '0%';
+    // Force a reflow so the width:0% above is actually committed before
+    // re-enabling the transition below - otherwise the browser can coalesce
+    // both style writes into one paint and the bar never visibly resets.
+    void els.fill.offsetWidth;
+    els.fill.style.transition = 'width ' + IDLE_DELAY_MS + 'ms linear';
+    els.fill.style.width = '100%';
+  }
+
+  function resetIdleTimer() {
+    window.clearTimeout(idleTimer);
+    if (!autoAdvanceEnabled) { stopIdleBar(); return; }
+    startIdleBar();
+    idleTimer = window.setTimeout(autoAdvance, IDLE_DELAY_MS);
+  }
+
+  function lightboxIsOpen() {
+    var backdrop = document.querySelector('.lightbox-backdrop');
+    return !!backdrop && !backdrop.hidden;
+  }
+
+  function autoAdvance() {
+    if (!autoAdvanceEnabled) return;
+    if (document.hidden || lightboxIsOpen()) { resetIdleTimer(); return; }
+    if (!state.images.length) { resetIdleTimer(); return; }
+
+    var candidates = [];
+    state.images.forEach(function (img, i) {
+      if (i !== state.currentIndex && matchesFilter(img)) candidates.push(i);
+    });
+    if (!candidates.length) { resetIdleTimer(); return; }
+
+    freezeIdleBarForTransition(); // keep the bar's space reserved while the dissolve plays
+    state.currentIndex = candidates[Math.floor(Math.random() * candidates.length)];
+    render(true);
+    // Deliberately NOT calling resetIdleTimer() here - ditherSwap() does it
+    // once the dissolve actually finishes, so the next 10s countdown is
+    // paced from the end of the animation, not from the moment it started.
+  }
+
+  function setAutoAdvanceEnabled(on) {
+    autoAdvanceEnabled = on;
+    var btn = document.getElementById('btn-autoplay-toggle');
+    if (btn) {
+      btn.textContent = on ? T('recordViewer.pause') : T('recordViewer.resume');
+      btn.classList.toggle('paused', !on);
+    }
+    if (on) { resetIdleTimer(); } else { window.clearTimeout(idleTimer); stopIdleBar(); }
+  }
+
+  /* ---------------------------------------------------------------------
+     Dithered cross-fade for the auto-advance viewer transition. Draws both
+     the outgoing and incoming frame into small offscreen canvases, then
+     dissolves between them over a shuffled grid of blocks (a random-order
+     block dither, not a plain opacity cross-fade) so the swap feels alive
+     rather than like a simple blink. Small blocks (4px, at a capped ~220px
+     working resolution) keep the dissolve fine-grained and smooth rather
+     than a chunky, distracting checkerboard.
+     --------------------------------------------------------------------- */
+
+  function runDitherAnimation(canvas, oldData, newData, w, h, duration, onDone) {
+    var ctx = canvas.getContext('2d');
+    var blockSize = 4;
+    var cols = Math.ceil(w / blockSize);
+    var rows = Math.ceil(h / blockSize);
+    var totalBlocks = cols * rows;
+
+    var order = [];
+    for (var b = 0; b < totalBlocks; b++) order.push(b);
+    for (var k = order.length - 1; k > 0; k--) {
+      var j = Math.floor(Math.random() * (k + 1));
+      var tmp = order[k]; order[k] = order[j]; order[j] = tmp;
+    }
+    var revealAt = new Float32Array(totalBlocks);
+    for (var oi = 0; oi < order.length; oi++) revealAt[order[oi]] = oi / totalBlocks;
+
+    var out = ctx.createImageData(w, h);
+    var start = null;
+
+    function easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+    function frame(ts) {
+      if (!start) start = ts;
+      var raw = Math.min(1, (ts - start) / duration);
+      var t = easeInOutQuad(raw);
+
+      for (var by = 0; by < rows; by++) {
+        for (var bx = 0; bx < cols; bx++) {
+          var blockIdx = by * cols + bx;
+          var src = (revealAt[blockIdx] <= t) ? newData : oldData;
+          var yMax = Math.min(h, by * blockSize + blockSize);
+          var xMax = Math.min(w, bx * blockSize + blockSize);
+          for (var y = by * blockSize; y < yMax; y++) {
+            var rowBase = y * w;
+            for (var x = bx * blockSize; x < xMax; x++) {
+              var idx = (rowBase + x) * 4;
+              out.data[idx] = src.data[idx];
+              out.data[idx + 1] = src.data[idx + 1];
+              out.data[idx + 2] = src.data[idx + 2];
+              out.data[idx + 3] = 255;
+            }
+          }
+        }
+      }
+      ctx.putImageData(out, 0, 0);
+
+      if (raw < 1) {
+        window.requestAnimationFrame(frame);
+      } else {
+        onDone();
+      }
+    }
+    window.requestAnimationFrame(frame);
+  }
+
+  function ditherSwap(imgEl, newSrc, onComplete) {
+    var dCanvas = document.getElementById('viewer-dither');
+    if (!dCanvas || !window.CanvasRenderingContext2D) { plainSwap(imgEl, newSrc, onComplete); return; }
+
+    var fallback = function () { plainSwap(imgEl, newSrc, onComplete); };
+
+    var newImg = new Image();
+    newImg.onload = function () {
+      try {
+        var w = Math.max(1, Math.min(220, newImg.naturalWidth || 220));
+        var h = Math.round(w * ((newImg.naturalHeight || w) / (newImg.naturalWidth || w)));
+
+        var offOld = document.createElement('canvas');
+        offOld.width = w; offOld.height = h;
+        var offOldCtx = offOld.getContext('2d');
+        offOldCtx.drawImage(imgEl, 0, 0, w, h);
+        var oldData = offOldCtx.getImageData(0, 0, w, h);
+
+        var offNew = document.createElement('canvas');
+        offNew.width = w; offNew.height = h;
+        var offNewCtx = offNew.getContext('2d');
+        offNewCtx.drawImage(newImg, 0, 0, w, h);
+        var newData = offNewCtx.getImageData(0, 0, w, h);
+
+        dCanvas.width = w;
+        dCanvas.height = h;
+        imgEl.hidden = true;
+        dCanvas.hidden = false;
+
+        runDitherAnimation(dCanvas, oldData, newData, w, h, 1700, function () {
+          imgEl.src = newSrc;
+          imgEl.style.opacity = '1';
+          imgEl.onload = function () {
+            dCanvas.hidden = true;
+            imgEl.hidden = false;
+            resetIdleTimer();
+            if (onComplete) onComplete();
+          };
+        });
+      } catch (e) {
+        // Canvas pixel access blew up for some environment-specific reason
+        // (e.g. a browser that treats the local file:// origin as tainted) -
+        // fall back to the ordinary fade rather than leaving the viewer stuck.
+        imgEl.hidden = false;
+        dCanvas.hidden = true;
+        fallback();
+      }
+    };
+    newImg.onerror = fallback;
+    newImg.src = newSrc;
+  }
+
+  function plainSwap(imgEl, newSrc, onComplete) {
+    imgEl.style.opacity = '0';
+    window.setTimeout(function () {
+      imgEl.src = newSrc;
+      imgEl.onload = function () {
+        imgEl.style.opacity = '1';
+        resetIdleTimer();
+        if (onComplete) onComplete();
+      };
+    }, 90);
+  }
+
+  /* ---------------------------------------------------------------------
      Navigation
      --------------------------------------------------------------------- */
 
   function goStep(direction) {
+    resetIdleTimer();
     var n = state.images.length;
     for (var step = 1; step <= n; step++) {
       var ni = (state.currentIndex + direction * step + n) % n;
@@ -394,6 +681,7 @@
   }
 
   function goRandom() {
+    resetIdleTimer();
     var candidates = [];
     state.images.forEach(function (img, i) { if (matchesFilter(img)) candidates.push(i); });
     if (!candidates.length) return;
@@ -402,6 +690,7 @@
   }
 
   function goJump(value) {
+    resetIdleTimer();
     var n = parseInt(value, 10);
     if (isNaN(n)) return;
     n = Math.max(0, Math.min(state.images.length - 1, n));
@@ -417,12 +706,27 @@
   document.getElementById('btn-next').addEventListener('click', function () { goStep(1); });
   document.getElementById('btn-random').addEventListener('click', goRandom);
 
+  var autoplayBtn = document.getElementById('btn-autoplay-toggle');
+  if (autoplayBtn) {
+    if (prefersReducedMotion) {
+      // Nothing to pause - auto-advance never starts for this viewer, so
+      // don't show a control that implies otherwise.
+      autoplayBtn.hidden = true;
+    } else {
+      // Just label it for now - the countdown itself only starts once
+      // loadData() finishes and calls resetIdleTimer() the first time.
+      autoplayBtn.textContent = T('recordViewer.pause');
+      autoplayBtn.addEventListener('click', function () { setAutoAdvanceEnabled(!autoAdvanceEnabled); });
+    }
+  }
+
   document.getElementById('record-jump').addEventListener('change', function (e) { goJump(e.target.value); });
   document.getElementById('record-jump').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') goJump(e.target.value);
   });
 
   document.getElementById('filter-select').addEventListener('change', function (e) {
+    resetIdleTimer();
     state.filter = e.target.value;
     // goStep() re-renders (and so refreshes the match count) only when it
     // actually has to jump; when the current record already satisfies the
@@ -436,6 +740,7 @@
   });
 
   document.getElementById('outcome-filter').addEventListener('change', function (e) {
+    resetIdleTimer();
     state.outcomeFilter = e.target.value;
     if (state.images.length && !matchesFilter(state.images[state.currentIndex])) {
       goStep(1);
@@ -445,6 +750,7 @@
   });
 
   document.getElementById('confidence-filter').addEventListener('change', function (e) {
+    resetIdleTimer();
     state.confidenceFilter = e.target.value;
     if (state.images.length && !matchesFilter(state.images[state.currentIndex])) {
       goStep(1);
@@ -454,12 +760,14 @@
   });
 
   document.getElementById('model-type-filter').addEventListener('change', function (e) {
+    resetIdleTimer();
     state.modelTypeFilter = e.target.value;
     renderModelList();
   });
 
   var viewerFrame = document.getElementById('viewer-frame');
   viewerFrame.addEventListener('click', function () {
+    resetIdleTimer();
     if (!state.images.length) return;
     var img = state.images[state.currentIndex];
     window.CQI.openLightbox([{ src: img.image, caption: 'Record ' + pad3(state.currentIndex) + ' — true label ' + labelText(img.true_label) }], 0);
@@ -483,6 +791,10 @@
     document.getElementById('stat-images').textContent = T('status.testRecords') + ': ' + state.images.length;
     renderModelList();
     render();
+    var autoplayBtn2 = document.getElementById('btn-autoplay-toggle');
+    if (autoplayBtn2 && !autoplayBtn2.hidden) {
+      autoplayBtn2.textContent = autoAdvanceEnabled ? T('recordViewer.pause') : T('recordViewer.resume');
+    }
   });
 
   loadData();

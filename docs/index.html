@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Peotran QC — Playground</title>
+<title>Peotran QC — Welcome</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect width=%2216%22 height=%2216%22 fill=%22%230a0f0a%22/><text x=%228%22 y=%2212%22 font-size=%2211%22 text-anchor=%22middle%22 fill=%22%233dff5a%22>&gt;</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="page-playground">
+<body class="page-about">
 <div class="crt-shell">
 
   <div class="titlebar">
-    <span class="titlebar-text"><span class="brand-word">PEOTRAN</span>_QC.EXE — <span data-i18n="titlebar.playground">Playground</span></span>
+    <span class="titlebar-text"><span class="brand-word">PEOTRAN</span>_QC.EXE — <span data-i18n="titlebar.about">Welcome</span></span>
     <span class="titlebar-controls">
       <span class="tb-toggle" id="btn-music-toggle" data-i18n-title="toggle.music" title="Toggle background music">MUSIC: ON</span>
       <span class="tb-toggle" id="btn-lang-toggle" data-lang-label data-i18n-title="toggle.lang" title="Switch language">TIẾNG VIỆT</span>
@@ -23,134 +23,254 @@
     </span>
   </div>
   <div class="toolbar">
-    <a href="index.html" class="active" data-i18n="nav.playground" data-i18n-hint="nav.playground.hint">01_PLAYGROUND</a>
-    <a href="stats.html" data-i18n="nav.stats" data-i18n-hint="nav.stats.hint">02_MODEL_STATS</a>
-    <a href="https://github.com/" target="_blank" rel="noopener" data-i18n="nav.source" data-i18n-hint="nav.source.hint">03_SOURCE</a>
+    <a href="index.html" class="active" data-i18n="nav.about" data-i18n-hint="nav.about.hint">01_ABOUT</a>
+    <a href="playground.html" data-i18n="nav.playground" data-i18n-hint="nav.playground.hint">02_PLAYGROUND</a>
+    <a href="stats.html" data-i18n="nav.stats" data-i18n-hint="nav.stats.hint">03_MODEL_STATS</a>
+    <a href="https://github.com/peotrannnn/Casting-Quality-Inspection-using-ML-DL" target="_blank" rel="noopener" data-i18n="nav.source" data-i18n-hint="nav.source.hint">04_SOURCE</a>
   </div>
 
   <div class="status-line">
     <span><span class="dot"></span><span data-i18n="status.online">SYSTEM ONLINE</span></span>
-    <span id="stat-models">MODELS LOADED: --</span>
-    <span id="stat-images">TEST RECORDS: --</span>
-    <span class="status-hint" id="status-hint" data-i18n="status.playgroundHint">Submersible pump impeller casting dataset — test split only.</span>
+    <span class="status-hint" data-i18n="status.aboutHint">A quick tour before you dive in — where the data comes from and what this project does.</span>
   </div>
 
-  <div class="grid-2">
+  <div class="hero-banner">
+    <p class="hero-boot" data-i18n-html="about.boot">SYSTEM BOOT: peotran_qc.exe &rarr; loading casting_quality_inspection.story&hellip;</p>
+    <div class="hero-title" data-i18n="about.title">CASTING QUALITY INSPECTION</div>
+    <p class="hero-subtitle" data-i18n="about.subtitle">
+      Can a machine spot a bad casting just by looking at it? This site puts 22 models — from a straight-line
+      classifier to a full deep neural network — up against the same 715 real factory photos, with every number
+      shown drawn live from the real results.
+    </p>
+    <div class="hero-cta-row">
+      <a class="hero-cta" href="playground.html" data-i18n-html="about.ctaPlayground">&rarr; 02_PLAYGROUND — try a model yourself</a>
+      <a class="hero-cta" href="stats.html" data-i18n-html="about.ctaStats">&rarr; 03_MODEL_STATS — see the full leaderboard</a>
+    </div>
+  </div>
 
-    <!-- LEFT COLUMN: image record + navigation -->
-    <div>
-      <div class="panel">
-        <div class="panel-title" data-i18n="recordViewer.title">RECORD VIEWER</div>
-        <div class="panel-body" style="text-align:center;">
-          <div class="img-frame clickable" id="viewer-frame" data-i18n-hint="recordViewer.viewerHint">
-            <img id="viewer-image" src="" alt="Test image">
-            <div class="frame-caption" id="viewer-caption" data-i18n="recordViewer.loading">LOADING...</div>
-          </div>
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="about.dataset.title">THE DATASET</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="about.dataset.subtitle">real photos, from a real factory</span></div>
+    <div class="panel-body">
+      <p class="about-lead" data-i18n-html="about.dataset.p1">
+        Every photo on this site comes from a public dataset on Kaggle,
+        <a href="https://www.kaggle.com/datasets/ravirajsinh45/real-life-industrial-dataset-of-casting-product" target="_blank" rel="noopener">casting product image data for quality inspection</a>,
+        published by <strong>ravirajsinh45</strong>. The photos themselves were taken on an actual production line
+        at <strong>Pilot TechnoCast</strong>, a casting manufacturer in Shapar, Rajkot, India — real parts, a real
+        camera, real defects, not a synthetic benchmark.
+      </p>
+      <p class="about-lead" data-i18n-html="about.dataset.p2" style="margin-bottom:16px;">
+        The part being photographed is a <strong>submersible pump impeller</strong>. Every image is labeled one of
+        two ways — <code>def_front</code> (defective) or <code>ok_front</code> (OK) — flagged for real casting
+        defects such as blow holes, pinholes, burr, shrinkage, and mould-material or pouring-metal defects.
+      </p>
 
-          <div class="record-nav" style="justify-content:center;">
-            <button class="btn small" id="btn-prev" data-i18n="recordViewer.prev" data-i18n-hint="recordViewer.prevHint">&#8592; PREV</button>
-            <input type="text" class="record-jump" id="record-jump" value="0" inputmode="numeric" data-i18n-hint="recordViewer.jumpHint">
-            <button class="btn small" id="btn-next" data-i18n="recordViewer.next" data-i18n-hint="recordViewer.nextHint">NEXT &#8594;</button>
-            <button class="btn small" id="btn-random" data-i18n="recordViewer.random" data-i18n-hint="recordViewer.randomHint">RANDOM</button>
-          </div>
-          <div class="record-nav" style="justify-content:center; margin-top:10px;">
-            <label class="field-label" style="margin:0;" data-i18n="recordViewer.filterLabel">FILTER:</label>
-            <select id="filter-select" data-i18n-hint="recordViewer.filterHint">
-              <option value="all" data-i18n="recordViewer.filterAll">ALL RECORDS</option>
-              <option value="def_front" data-i18n="recordViewer.filterDef">TRUE LABEL: DEFECTIVE</option>
-              <option value="ok_front" data-i18n="recordViewer.filterOk">TRUE LABEL: OK</option>
-            </select>
-          </div>
-          <div class="record-nav" style="justify-content:center; margin-top:6px;">
-            <label class="field-label" style="margin:0;" data-i18n="filter.outcomeLabel">OUTCOME:</label>
-            <select id="outcome-filter" data-i18n-hint="filter.outcomeHint">
-              <option value="all" data-i18n="filter.outcomeAll">ANY OUTCOME</option>
-              <option value="correct" data-i18n="filter.outcomeCorrect">CORRECT ONLY</option>
-              <option value="incorrect" data-i18n="filter.outcomeIncorrect">MISCLASSIFIED ONLY</option>
-            </select>
-            <label class="field-label" style="margin:0;" data-i18n="filter.confidenceLabel">CONFIDENCE:</label>
-            <select id="confidence-filter" data-i18n-hint="filter.confidenceHint">
-              <option value="all" data-i18n="filter.confidenceAll">ANY CONFIDENCE</option>
-              <option value="confident" data-i18n="filter.confidenceConfident">CONFIDENT (&ge;90%)</option>
-              <option value="moderate" data-i18n="filter.confidenceModerate">MODERATE (70&ndash;90%)</option>
-              <option value="uncertain" data-i18n="filter.confidenceUncertain">UNCERTAIN (&le;70%)</option>
-            </select>
-          </div>
-          <div class="filter-match-count" id="filter-match-count" style="text-align:center;"></div>
+      <div class="meth-stats">
+        <div class="meth-stat" style="--stat-color: var(--clf-a);">
+          <div class="meth-stat-num">7,348</div>
+          <div class="meth-stat-label" data-i18n-html="about.dataset.stat1Label">PHOTOS<br>in the original dataset</div>
+        </div>
+        <div class="meth-stat" style="--stat-color: var(--ok);">
+          <div class="meth-stat-num">2</div>
+          <div class="meth-stat-label" data-i18n-html="about.dataset.stat2Label">CLASSES<br>def_front &middot; ok_front</div>
+        </div>
+        <div class="meth-stat" style="--stat-color: var(--clf-c);">
+          <div class="meth-stat-num">512&times;512</div>
+          <div class="meth-stat-label" data-i18n-html="about.dataset.stat3Label">ORIGINAL RESOLUTION<br>a 300&times;300 augmented set ships too</div>
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-title"><span data-i18n="selectModel.title">SELECT MODEL</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="selectModel.subtitle">(22 available — hover a row for spec)</span></div>
-        <div class="panel-body">
-          <div class="record-nav" style="margin-bottom:8px;">
-            <label class="field-label" style="margin:0;" data-i18n="selectModel.typeLabel">TYPE:</label>
-            <select id="model-type-filter" data-i18n-hint="selectModel.typeHint">
-              <option value="all" data-i18n="selectModel.typeAll">ALL (21 CLASSICAL + 1 CNN)</option>
-              <option value="deep_learning" data-i18n="selectModel.typeDl">DEEP LEARNING ONLY</option>
-              <option value="classical" data-i18n="selectModel.typeClassical">CLASSICAL ML ONLY</option>
-            </select>
+      <div class="sample-pair">
+        <div class="sample-card ok">
+          <img src="assets/figures/sample_ok.png" alt="Six example OK casting photos from the dataset">
+          <p class="sample-card-caption" data-i18n="about.dataset.sampleOkCaption">6 OK examples, straight from the dataset</p>
+        </div>
+        <div class="sample-card def">
+          <img src="assets/figures/sample_defective.png" alt="Six example defective casting photos from the dataset">
+          <p class="sample-card-caption" data-i18n="about.dataset.sampleDefCaption">6 defective examples, straight from the dataset</p>
+        </div>
+      </div>
+      <p class="muted" style="margin:10px 0 0; font-size:11px;"><a href="https://www.kaggle.com/datasets/ravirajsinh45/real-life-industrial-dataset-of-casting-product" target="_blank" rel="noopener" data-i18n="about.linkKaggle">↗ open on Kaggle</a></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="about.problem.title">THE PROBLEM</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="about.problem.subtitle">teaching a machine to do the first pass</span></div>
+    <div class="panel-body">
+      <p class="about-lead" data-i18n-html="about.problem.p1">
+        In a real factory, the first line of defense against a bad casting is usually a person standing at a
+        lightbox — reliable, but slow, subjective, and expensive to run on every single part, every shift. This
+        project asks a narrower question: can a model do that first pass instead? It's a binary image
+        classification problem — given one photo of a cast impeller, predict <code>def_front</code> or
+        <code>ok_front</code>.
+      </p>
+
+      <div class="meth-flow">
+        <div class="meth-flow-step" data-i18n="about.problem.flow1">PHOTO IN</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step ok" data-i18n="about.problem.flow2">22 MODELS PREDICT</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step" data-i18n="about.problem.flow3">DEF_FRONT / OK_FRONT OUT</div>
+      </div>
+
+      <p class="about-lead" data-i18n-html="about.problem.p2" style="margin-bottom:0;">
+        To find out, this project doesn't train just one model — it trains <strong>22</strong>, then compares
+        every one of them on the exact same 715 held-out test photos. Head to
+        <a href="playground.html">02_PLAYGROUND</a> to watch any of them make a real prediction, record by
+        record, or <a href="stats.html">03_MODEL_STATS</a> for the full leaderboard, training curves, and known
+        limitations.
+      </p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="about.features.title">FEATURE EXTRACTION — CLASSICAL CV</span></div>
+    <div class="panel-body">
+      <p class="muted" style="margin:0 0 12px; font-size:12px;" data-i18n="about.features.subtitle">7 ways to turn a photo into numbers, before any classifier ever sees it</p>
+      <div class="spec-grid">
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/raw_pixel_grid.png" alt="12x12 crop of raw pixel values">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.raw.title">RAW PIXELS</div>
+            <div class="spec-formula">pixel(x,y) → flatten → ℝ⁹⁰⁰⁰⁰</div>
+            <p class="spec-card-desc" data-i18n="about.features.raw.desc">The flattened, normalized grayscale pixel grid itself — no feature engineering at all, just the baseline every other feature has to beat.</p>
+            <a class="spec-card-link" href="https://docs.opencv.org/4.x/d3/df2/tutorial_py_basic_ops.html" target="_blank" rel="noopener" data-i18n="about.linkOpenCV">↗ OpenCV docs</a>
           </div>
-          <div class="model-list" id="model-list">
-            <div class="loading-line pulse" data-i18n="selectModel.loading">LOADING MODEL REGISTRY...</div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/histogram_comparison.png" alt="Grayscale histogram comparing a defective and an OK photo">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.hist.title">GRAYSCALE HISTOGRAM</div>
+            <div class="spec-formula">H(i) = count(pixels = i), i=0..255</div>
+            <p class="spec-card-desc" data-i18n="about.features.hist.desc">The distribution of brightness values across the whole photo. Cheap — and, as the SYSTEM ADVISORY on this site explains, almost too good at solving this particular dataset.</p>
+            <a class="spec-card-link" href="https://docs.opencv.org/4.x/d1/db7/tutorial_py_histogram_begins.html" target="_blank" rel="noopener" data-i18n="about.linkOpenCV">↗ OpenCV docs</a>
+          </div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/sobel_edges.png" alt="Original photo next to its Sobel edge map">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.sobel.title">SOBEL</div>
+            <div class="spec-formula">|G| = √(Gx² + Gy²)</div>
+            <p class="spec-card-desc" data-i18n="about.features.sobel.desc">A gradient-based edge detector — highlights where brightness changes sharply, tracing the rim and any cracks.</p>
+            <a class="spec-card-link" href="https://docs.opencv.org/4.x/d2/d2c/tutorial_sobel_derivatives.html" target="_blank" rel="noopener" data-i18n="about.linkOpenCV">↗ OpenCV docs</a>
+          </div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/canny_edges.png" alt="Original photo next to its Canny edge map">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.canny.title">CANNY</div>
+            <div class="spec-formula">edge = NMS(∇I) → hysteresis(50,150)</div>
+            <p class="spec-card-desc" data-i18n="about.features.canny.desc">A cleaner, thresholded edge map built on the same gradient idea as Sobel — crisp outlines instead of raw gradient strength.</p>
+            <a class="spec-card-link" href="https://docs.opencv.org/4.x/da/d22/tutorial_py_canny.html" target="_blank" rel="noopener" data-i18n="about.linkOpenCV">↗ OpenCV docs</a>
+          </div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/lbp_visualization.png" alt="Original photo next to its LBP texture map">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.lbp.title">LBP</div>
+            <div class="spec-formula">LBP = Σ s(gₚ−g_c)·2ᵖ, p=0..7</div>
+            <p class="spec-card-desc" data-i18n="about.features.lbp.desc">Local Binary Patterns — encodes texture by comparing each pixel to its neighbors, good at picking up the fine surface texture a defect leaves behind.</p>
+            <a class="spec-card-link" href="https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_local_binary_pattern.html" target="_blank" rel="noopener" data-i18n="about.linkSkimage">↗ scikit-image docs</a>
+          </div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/hog_visualization.png" alt="Original photo next to its HOG visualization">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.hog.title">HOG</div>
+            <div class="spec-formula">9 orientation bins × 16×16px cells</div>
+            <p class="spec-card-desc" data-i18n="about.features.hog.desc">Histogram of Oriented Gradients — summarizes edge direction and strength in local cells, capturing shape and contour structure.</p>
+            <a class="spec-card-link" href="https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_hog.html" target="_blank" rel="noopener" data-i18n="about.linkSkimage">↗ scikit-image docs</a>
+          </div>
+        </div>
+        <div class="spec-card">
+          <img class="spec-card-img" src="assets/figures/glcm_heatmap.png" alt="Gray-level co-occurrence matrix heatmap">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.features.glcm.title">GLCM</div>
+            <div class="spec-formula">P(i,j | d,θ), contrast=Σ(i−j)²P(i,j)</div>
+            <p class="spec-card-desc" data-i18n="about.features.glcm.desc">Gray-Level Co-occurrence Matrix — a statistical texture descriptor: how often pairs of pixel values occur next to each other, at a given distance and direction.</p>
+            <a class="spec-card-link" href="https://scikit-image.org/docs/stable/auto_examples/features_detection/plot_glcm.html" target="_blank" rel="noopener" data-i18n="about.linkSkimage">↗ scikit-image docs</a>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- RIGHT COLUMN: verdict + gradcam -->
-    <div>
-      <div class="panel">
-        <div class="panel-title" data-i18n="inference.title">INFERENCE RESULT</div>
-        <div class="panel-body">
-          <div class="verdict-box">
-            <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
-              <div>
-                <div class="verdict-meta"><span data-i18n="inference.modelLabel">MODEL:</span> <span id="v-model-name">--</span></div>
-                <div class="verdict-label" id="v-label">-- --</div>
-              </div>
-              <div style="text-align:right;">
-                <div class="verdict-meta" data-i18n="inference.trueLabel">TRUE LABEL</div>
-                <div class="verdict-label" id="v-truth" style="font-size:22px;">--</div>
-              </div>
-            </div>
-            <span class="correctness" id="v-correct">--</span>
-
-            <div class="meter">
-              <div class="meter-label"><span data-i18n="inference.confidence">CONFIDENCE</span><span><span id="v-conf-pct" class="mono-num">--%</span><span class="tier-badge" id="v-conf-tier" style="display:none;"></span></span></div>
-              <div class="meter-track"><div class="meter-fill" id="v-conf-bar" style="width:0%;"></div></div>
-            </div>
-            <div class="verdict-meta" id="v-conf-note" style="margin-top:8px;"></div>
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="about.models.title">CLASSICAL MODELS</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n-html="about.models.subtitle">3 classifiers × 7 features = 21 classical models</span></div>
+    <div class="panel-body">
+      <div class="spec-grid wide">
+        <div class="spec-card model-a">
+          <img class="spec-card-img" src="assets/figures/logreg_sigmoid.png" alt="Logistic regression sigmoid curve">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.models.logreg.title">LOGISTIC REGRESSION</div>
+            <div class="spec-formula">σ(z) = 1 / (1+e⁻ᶻ), z = w·x+b</div>
+            <p class="spec-card-desc" data-i18n="about.models.logreg.desc">A linear baseline — draws a single straight decision boundary through feature space. Fast, interpretable, and surprisingly hard to beat here.</p>
+            <a class="spec-card-link" href="https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression" target="_blank" rel="noopener" data-i18n="about.linkSklearn">↗ scikit-learn docs</a>
+          </div>
+        </div>
+        <div class="spec-card model-b">
+          <img class="spec-card-img" src="assets/figures/random_forest.png" alt="Random forest ensemble diagram">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.models.rf.title">RANDOM FOREST</div>
+            <div class="spec-formula">ŷ = mode{ T₁(x), T₂(x), …, Tₙ(x) }</div>
+            <p class="spec-card-desc" data-i18n="about.models.rf.desc">An ensemble of decision trees, each voting on a random subset of features — captures non-linear patterns raw pixels leave on the table.</p>
+            <a class="spec-card-link" href="https://scikit-learn.org/stable/modules/ensemble.html#forests-of-randomized-trees" target="_blank" rel="noopener" data-i18n="about.linkSklearn">↗ scikit-learn docs</a>
+          </div>
+        </div>
+        <div class="spec-card model-c">
+          <img class="spec-card-img" src="assets/figures/svm_margin.png" alt="SVM margin illustration">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.models.svm.title">SVM</div>
+            <div class="spec-formula">maximize 2/‖w‖  s.t. yᵢ(w·xᵢ+b)≥1</div>
+            <p class="spec-card-desc" data-i18n="about.models.svm.desc">Finds the widest possible margin between the two classes in feature space — this project's single best classical result.</p>
+            <a class="spec-card-link" href="https://scikit-learn.org/stable/modules/svm.html" target="_blank" rel="noopener" data-i18n="about.linkSklearn">↗ scikit-learn docs</a>
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="panel">
-        <div class="panel-title" data-i18n="gradcam.title">GRAD-CAM EXPLANATION</div>
-        <div class="panel-body" id="gradcam-body">
-          <div class="loading-line" data-i18n="gradcam.loading">SELECT A MODEL TO SEE AN EXPLANATION</div>
+  <div class="panel">
+    <div class="panel-title"><span data-i18n="about.dl.title">DEEP LEARNING</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="about.dl.subtitle">letting a network learn its own features</span></div>
+    <div class="panel-body">
+      <div class="spec-grid wide">
+        <div class="spec-card dl-a">
+          <img class="spec-card-img" src="assets/figures/resnet_residual_block.png" alt="ResNet residual block diagram">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.dl.resnetTitle">RESNET18</div>
+            <div class="spec-formula">output = F(x) + x  (residual mapping)</div>
+            <p class="spec-card-desc" data-i18n="about.dl.resnetDesc">Instead of hand-crafted features, a convolutional neural network learns its own — 18 layers deep, with residual ("skip") connections that let gradients keep flowing through a very deep network. This project fine-tunes a version pretrained on ImageNet (transfer learning) rather than training from scratch.</p>
+            <a class="spec-card-link" href="https://arxiv.org/abs/1512.03385" target="_blank" rel="noopener" data-i18n="about.linkArxiv">↗ arXiv paper</a>
+            <a class="spec-card-link" href="https://pytorch.org/vision/stable/models/resnet.html" target="_blank" rel="noopener" data-i18n="about.linkPyTorch">↗ PyTorch / torchvision docs</a>
+          </div>
+        </div>
+        <div class="spec-card dl-b">
+          <img class="spec-card-img" src="assets/figures/gradcam_example.png" alt="Grad-CAM heatmap overlay example">
+          <div class="spec-card-body">
+            <div class="spec-card-title" data-i18n="about.dl.gradcamTitle">GRAD-CAM</div>
+            <div class="spec-formula">L = ReLU( Σ αₖ · Aᵏ )</div>
+            <p class="spec-card-desc" data-i18n="about.dl.gradcamDesc">Every ResNet18 prediction on 02_PLAYGROUND ships with a Grad-CAM heatmap — a way to see which pixels actually pushed the model toward its verdict, instead of trusting the confidence number blindly.</p>
+            <a class="spec-card-link" href="https://arxiv.org/abs/1610.02391" target="_blank" rel="noopener" data-i18n="about.linkArxiv">↗ arXiv paper</a>
+          </div>
         </div>
       </div>
-
-      <div class="advisory-strip">
-        <span class="advisory-icon">[!]</span>
-        <span class="advisory-short" data-i18n="advisory.short">SYSTEM ADVISORY: every model here leans partly on a brightness shortcut in this dataset.</span>
-        <span class="tooltip-wrap" data-tooltip-i18n="advisory.detailsBody">
-          <button class="info-btn" type="button" data-i18n="advisory.details">(i) DETAILS</button>
-        </span>
-      </div>
     </div>
-
   </div>
 
   <footer class="crt-footer">
-    <span data-i18n="footer.playground2">715 test images × 22 models = 15,730 precomputed predictions</span>
+    <span data-i18n="footer.about1">PEOTRAN_QC.EXE v1.0 — a tour of the dataset and the approach behind every number on this site</span>
+    <span><a href="playground.html" data-i18n-html="about.footer.cta">&rarr; 02_PLAYGROUND — pick a model and see it classify a real photo</a></span>
   </footer>
 
 </div>
 
 <script src="js/ui.js"></script>
 <script src="js/music.js"></script>
-<script src="js/app.js"></script>
+<script>
+  // This page has no page-specific script of its own (index/stats normally
+  // wire these two buttons from app.js/stats.js) - wire them here instead,
+  // straight to the shared toggles ui.js already exposes.
+  document.getElementById('btn-lang-toggle').addEventListener('click', window.CQI.toggleLang);
+  document.getElementById('btn-theme-toggle').addEventListener('click', window.CQI.toggleTheme);
+</script>
 </body>
 </html>

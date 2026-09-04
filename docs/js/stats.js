@@ -13,6 +13,7 @@
   var models = [];
   var images = [];
   var predictions = {};
+  var umapData = null;
   var sortKey = 'test_f1';
   var sortDir = -1; // -1 = descending
   var openModelId = null; // whichever model's modal is currently open, if any
@@ -34,10 +35,15 @@
       fetch('data/models.json').then(function (r) { return r.json(); }),
       fetch('data/images.json').then(function (r) { return r.json(); }),
       fetch('data/predictions.json').then(function (r) { return r.json(); }),
+      // umap.json is optional - it only exists once someone has run the
+      // export cell in 07_error_analysis.ipynb (§9), so a 404/parse
+      // failure here just means "no UMAP panel yet", not a broken page.
+      fetch('data/umap.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
     ]).then(function (results) {
       models = results[0];
       images = results[1];
       predictions = results[2];
+      umapData = results[3];
 
       document.getElementById('stat-models').textContent = 'MODELS LOADED: ' + models.length;
       renderAll();
@@ -61,6 +67,8 @@
     renderTrainingCurve();
     renderBrightnessBoxplot();
     renderEvidenceStrips();
+    renderLeakageTable();
+    renderUmap();
     if (openModelId && window.modelsById()[openModelId]) {
       openModal(window.modelsById()[openModelId]);
     }
@@ -89,7 +97,7 @@
 
     sortedModels().forEach(function (m, i) {
       var tr = document.createElement('tr');
-      if (m.type === 'deep_learning') tr.className = 'dl-row';
+      if (i === 0) tr.className = 'rank-first';
 
       tr.innerHTML =
         '<td>' + (i + 1) + '</td>' +
@@ -154,9 +162,9 @@
     var ranked = models.slice().sort(function (a, b) { return b.test_accuracy - a.test_accuracy; });
     var max = ranked[0].test_accuracy;
 
-    ranked.forEach(function (m) {
+    ranked.forEach(function (m, i) {
       var row = document.createElement('div');
-      row.className = 'chart-row' + (m.type === 'deep_learning' ? ' dl' : '');
+      row.className = 'chart-row' + (m.type === 'deep_learning' ? ' dl' : '') + (i === 0 ? ' rank1' : '');
 
       var label = document.createElement('div');
       label.className = 'chart-label';
@@ -293,13 +301,19 @@
      applies to ResNet18.
      --------------------------------------------------------------------- */
 
+  /* Sourced from 06_model_testing.ipynb (cell 30's training log) - this is
+   * the run whose checkpoint is actually saved to models/resnet18_casting.pt
+   * (cell 39 there: torch.save(...)) and whose test-set numbers exactly
+   * match data/models.json's resnet18 row (0.9972 acc / 0.9924 prec /
+   * 1.0000 recall). 05_deep_learning.ipynb trains its own separate,
+   * unsaved ResNet18 run for exploration and is not the deployed model. */
   var TRAINING_HISTORY = {
     epochs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    train_loss: [0.0877, 0.0186, 0.0176, 0.0115, 0.0102, 0.0204, 0.0121, 0.0089, 0.0082, 0.0105],
-    train_accuracy: [0.9670, 0.9953, 0.9938, 0.9962, 0.9962, 0.9925, 0.9960, 0.9972, 0.9972, 0.9960],
-    val_f1: [0.9954, 0.9977, 0.9985, 0.9985, 0.9568, 0.9992, 0.9985, 0.9985, 0.9962, 0.9962],
+    train_loss: [0.0740, 0.0215, 0.0160, 0.0117, 0.0117, 0.0103, 0.0080, 0.0117, 0.0142, 0.0098],
+    train_accuracy: [0.9726, 0.9939, 0.9933, 0.9954, 0.9960, 0.9973, 0.9975, 0.9954, 0.9951, 0.9968],
+    val_f1: [0.9908, 0.9908, 0.9969, 0.9954, 0.9962, 0.9977, 0.9977, 0.9962, 0.9977, 0.9969],
     best_epoch: 6,
-    best_val_f1: 0.9992,
+    best_val_f1: 0.9977,
   };
 
   function renderTrainingCurve() {
@@ -381,6 +395,140 @@
   }
 
   /* ---------------------------------------------------------------------
+     UMAP embeddings (native SVG scatter, 2 panels: Histogram 256-d vs
+     ResNet18 512-d feature space, both projected to 2-D). Coordinates come
+     from data/umap.json, exported by the cell added to §9 of
+     07_error_analysis.ipynb - a real UMAP.fit_transform() run on the real
+     test-set feature vectors, not a fake/simulated scatter. Joined against
+     images.json by id for true_label (def_front/ok_front) coloring.
+     Renders nothing (and leaves the panel's static placeholder text
+     showing through, or simplest: an explicit "not exported yet" message)
+     if umap.json hasn't been generated yet.
+     --------------------------------------------------------------------- */
+
+  function renderUmap() {
+    var container = document.getElementById('umap-body');
+    var noteEl = document.getElementById('umap-note');
+    if (!container) return;
+
+    if (!umapData || !umapData.histogram || !umapData.resnet18) {
+      container.innerHTML = '<p class="muted" style="margin:0;">' + T('umap.missing') + '</p>';
+      if (noteEl) noteEl.textContent = '';
+      return;
+    }
+
+    var labelById = {};
+    images.forEach(function (img) { labelById[img.id] = img.true_label; });
+
+    function toPoints(entry) {
+      return entry.points.map(function (p) {
+        var label = labelById[p.id];
+        return {
+          x: p.x, y: p.y,
+          color: label === 'def_front' ? getCssVar('--def') : getCssVar('--ok'),
+          misclassified: !p.correct,
+        };
+      });
+    }
+
+    container.innerHTML =
+      '<div class="chart-block"><div class="chart-block-title">' + T('umap.histogramTitle') + '</div><div id="umap-histogram"></div></div>' +
+      '<div class="chart-block"><div class="chart-block-title">' + T('umap.resnetTitle') + '</div><div id="umap-resnet18"></div></div>';
+
+    var legend = [
+      { label: T('umap.legendDef'), color: getCssVar('--def'), shape: 'dot' },
+      { label: T('umap.legendOk'), color: getCssVar('--ok'), shape: 'dot' },
+      { label: T('umap.legendWrong'), color: getCssVar('--text'), shape: 'x' },
+    ];
+
+    window.CQI.drawScatterChart(document.getElementById('umap-histogram'), {
+      width: 420, height: 340,
+      points: toPoints(umapData.histogram),
+      legend: legend,
+      ariaLabel: 'UMAP projection of 256-d histogram features, test set',
+    });
+    window.CQI.drawScatterChart(document.getElementById('umap-resnet18'), {
+      width: 420, height: 340,
+      points: toPoints(umapData.resnet18),
+      legend: legend,
+      ariaLabel: 'UMAP projection of 512-d ResNet18 penultimate-layer features, test set',
+    });
+
+    if (noteEl) {
+      var histWrong = umapData.histogram.points.filter(function (p) { return !p.correct; }).length;
+      var resnetWrong = umapData.resnet18.points.filter(function (p) { return !p.correct; }).length;
+      noteEl.innerHTML = T('umap.note', { histWrong: histWrong, resnetWrong: resnetWrong });
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     Leakage cleanup: before -> after table (native, static data).
+     "Before" = test accuracy when 64 ok_front train images were still
+     byte-identical duplicates of held-out test images (real leakage,
+     found via MD5 hash comparison - see the METHODOLOGY panel). "After"
+     = test accuracy once those 64 duplicates were moved out of train/
+     and every model was retrained from scratch on the cleaned split.
+     The test set itself (715 images) was never touched, so this is an
+     apples-to-apples comparison of the same held-out images, not a
+     re-split.
+     --------------------------------------------------------------------- */
+
+  var LEAKAGE_BEFORE_AFTER = [
+    { model_id: 'histogram_svm', name: 'Histogram + SVM', type: 'classical', before: 0.998601, after: 0.998601 },
+    { model_id: 'resnet18', name: 'ResNet18', type: 'deep_learning', before: 0.998601, after: 0.997203 },
+    { model_id: 'histogram_random_forest', name: 'Histogram + Random Forest', type: 'classical', before: 0.995804, after: 0.993007 },
+    { model_id: 'raw_pixels_svm', name: 'Raw Pixels + SVM', type: 'classical', before: 0.991608, after: 0.988811 },
+    { model_id: 'hog_svm', name: 'HOG + SVM', type: 'classical', before: 0.993007, after: 0.986014 },
+    { model_id: 'raw_pixels_random_forest', name: 'Raw Pixels + Random Forest', type: 'classical', before: 0.984615, after: 0.976224 },
+    { model_id: 'hog_random_forest', name: 'HOG + Random Forest', type: 'classical', before: 0.983217, after: 0.972028 },
+    { model_id: 'hog_logistic_regression', name: 'HOG + Logistic Regression', type: 'classical', before: 0.973427, after: 0.969231 },
+    { model_id: 'histogram_logistic_regression', name: 'Histogram + Logistic Regression', type: 'classical', before: 0.955245, after: 0.951049 },
+    { model_id: 'sobel_random_forest', name: 'Sobel + Random Forest', type: 'classical', before: 0.932867, after: 0.927273 },
+    { model_id: 'sobel_svm', name: 'Sobel + SVM', type: 'classical', before: 0.918881, after: 0.918881 },
+    { model_id: 'raw_pixels_logistic_regression', name: 'Raw Pixels + Logistic Regression', type: 'classical', before: 0.927273, after: 0.918881 },
+    { model_id: 'glcm_random_forest', name: 'GLCM + Random Forest', type: 'classical', before: 0.87972, after: 0.862937 },
+    { model_id: 'glcm_svm', name: 'GLCM + SVM', type: 'classical', before: 0.832168, after: 0.827972 },
+    { model_id: 'lbp_random_forest', name: 'LBP + Random Forest', type: 'classical', before: 0.818182, after: 0.791608 },
+    { model_id: 'lbp_svm', name: 'LBP + SVM', type: 'classical', before: 0.793007, after: 0.79021 },
+    { model_id: 'glcm_logistic_regression', name: 'GLCM + Logistic Regression', type: 'classical', before: 0.783217, after: 0.783217 },
+    { model_id: 'lbp_logistic_regression', name: 'LBP + Logistic Regression', type: 'classical', before: 0.714685, after: 0.717483 },
+    { model_id: 'sobel_logistic_regression', name: 'Sobel + Logistic Regression', type: 'classical', before: 0.711888, after: 0.714685 },
+    { model_id: 'canny_svm', name: 'Canny + SVM', type: 'classical', before: 0.703497, after: 0.706294 },
+    { model_id: 'canny_random_forest', name: 'Canny + Random Forest', type: 'classical', before: 0.648951, after: 0.639161 },
+    { model_id: 'canny_logistic_regression', name: 'Canny + Logistic Regression', type: 'classical', before: 0.598601, after: 0.598601 },
+  ];
+
+  function renderLeakageTable() {
+    var tbody = document.getElementById('leakage-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = LEAKAGE_BEFORE_AFTER.map(function (m, i) {
+      var deltaPts = (m.after - m.before) * 100;
+      var deltaCls = deltaPts < -0.005 ? 'style="color:var(--def);"' : (deltaPts > 0.005 ? 'style="color:var(--ok);"' : 'style="color:var(--text-dim);"');
+      var deltaTxt = (deltaPts > 0.005 ? '+' : '') + deltaPts.toFixed(2) + ' pts';
+      return '<tr' + (i === 0 ? ' class="rank-first"' : '') + '>' +
+        '<td>' + m.name + '</td>' +
+        '<td>' + pct(m.before) + '</td>' +
+        '<td>' + pct(m.after) + '</td>' +
+        '<td ' + deltaCls + '>' + deltaTxt + '</td>' +
+      '</tr>';
+    }).join('');
+
+    var deltas = LEAKAGE_BEFORE_AFTER.map(function (m) { return (m.after - m.before) * 100; });
+    var mean = deltas.reduce(function (a, b) { return a + b; }, 0) / deltas.length;
+    var worst = Math.min.apply(null, deltas);
+    var worstModel = LEAKAGE_BEFORE_AFTER[deltas.indexOf(worst)].name;
+    var line = document.getElementById('leakage-summary-line');
+    if (line) {
+      line.innerHTML = T('leakageTable.summary', {
+        mean: mean.toFixed(2),
+        worst: worst.toFixed(2),
+        worstModel: worstModel,
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------------------
      Evidence strips - the real notebook screenshot(s) most relevant to
      each native chart above, shown right under it (not just hidden behind
      the single gallery button). Every thumbnail opens the SAME shared
@@ -396,7 +544,7 @@
       { src: 'assets/figures/hog_visualization.png', caption: T('fig.hog'), source: '03_classical_features.ipynb' },
       { src: 'assets/figures/feature_comparison.png', caption: T('fig.featureCompare'), source: '04_classical_ml.ipynb' },
       { src: 'assets/figures/confusion_matrix_svm.png', caption: T('fig.confusionSvm'), source: '04_classical_ml.ipynb' },
-      { src: 'assets/figures/resnet18_training.png', caption: T('fig.resnetTraining'), source: '05_deep_learning.ipynb' },
+      { src: 'assets/figures/resnet18_training.png', caption: T('fig.resnetTraining'), source: '06_model_testing.ipynb' },
       { src: 'assets/figures/unified_comparison.png', caption: T('fig.unifiedCompare'), source: '06_model_testing.ipynb' },
       { src: 'assets/figures/brightness_confound.png', caption: T('fig.brightnessBox'), source: '07_error_analysis.ipynb' },
       { src: 'assets/figures/umap_embeddings.png', caption: T('fig.umap'), source: '07_error_analysis.ipynb' },
@@ -601,9 +749,9 @@
     renderAll();
   });
   window.addEventListener('cqi:themechange', function () {
-    // Only the two native SVG charts bake colors into drawn attributes -
-    // everything else is plain CSS and repaints on its own.
-    if (models.length) { renderTrainingCurve(); renderBrightnessBoxplot(); }
+    // The native SVG charts bake colors into drawn attributes - everything
+    // else is plain CSS and repaints on its own.
+    if (models.length) { renderTrainingCurve(); renderBrightnessBoxplot(); renderUmap(); }
   });
 
   window.CQI.wireStatusHints('status-hint');

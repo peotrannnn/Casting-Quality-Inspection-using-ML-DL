@@ -23,15 +23,82 @@
     </span>
   </div>
   <div class="toolbar">
-    <a href="index.html" data-i18n="nav.playground" data-i18n-hint="nav.playground.hint">01_PLAYGROUND</a>
-    <a href="stats.html" class="active" data-i18n="nav.stats" data-i18n-hint="nav.stats.hint">02_MODEL_STATS</a>
-    <a href="https://github.com/" target="_blank" rel="noopener" data-i18n="nav.source" data-i18n-hint="nav.source.hint">03_SOURCE</a>
+    <a href="index.html" data-i18n="nav.about" data-i18n-hint="nav.about.hint">01_ABOUT</a>
+    <a href="playground.html" data-i18n="nav.playground" data-i18n-hint="nav.playground.hint">02_PLAYGROUND</a>
+    <a href="stats.html" class="active" data-i18n="nav.stats" data-i18n-hint="nav.stats.hint">03_MODEL_STATS</a>
+    <a href="https://github.com/peotrannnn/Casting-Quality-Inspection-using-ML-DL" target="_blank" rel="noopener" data-i18n="nav.source" data-i18n-hint="nav.source.hint">04_SOURCE</a>
   </div>
 
   <div class="status-line">
     <span><span class="dot"></span><span data-i18n="status.online">SYSTEM ONLINE</span></span>
     <span id="stat-models">MODELS LOADED: --</span>
     <span class="status-hint" id="status-hint" data-i18n="status.statsHint">21 classical (7 features × 3 classifiers) + 1 deep learning (ResNet18) — test-set metrics.</span>
+  </div>
+
+  <div class="panel" id="methodology">
+    <div class="panel-title"><span data-i18n="methodology.title">METHODOLOGY</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="methodology.subtitle">how these numbers were produced</span></div>
+    <div class="panel-body">
+      <div class="meth-stats">
+        <div class="meth-stat" style="--stat-color: var(--clf-a);">
+          <div class="meth-stat-num">715</div>
+          <div class="meth-stat-label" data-i18n-html="methodology.stat1">TEST PHOTOS<br>held out before any training</div>
+        </div>
+        <div class="meth-stat" style="--stat-color: var(--def);">
+          <div class="meth-stat-num">64</div>
+          <div class="meth-stat-label" data-i18n-html="methodology.stat2">DUPLICATES FOUND<br>leaking into the training set</div>
+        </div>
+        <div class="meth-stat" style="--stat-color: var(--ok);">
+          <div class="meth-stat-num">22</div>
+          <div class="meth-stat-label" data-i18n-html="methodology.stat3">MODELS<br>retrained from scratch</div>
+        </div>
+      </div>
+
+      <p class="meth-text" data-i18n-html="methodology.pipeline">
+        The <strong>715 test photos</strong> were set aside <strong>before any of the 22 models were trained</strong>,
+        so none of them ever saw these images during training. Every number on this page comes from testing on
+        those same 715 photos.
+      </p>
+
+      <div class="meth-flow">
+        <div class="meth-flow-step" data-i18n="methodology.flow1">TRAIN PHOTOS</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step" data-i18n="methodology.flow2">CHECKED AGAINST TEST PHOTOS</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step alert" data-i18n="methodology.flow3">64 DUPLICATES FOUND</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step ok" data-i18n="methodology.flow4">REMOVED FROM TRAIN</div>
+        <div class="meth-flow-arrow">&#8594;</div>
+        <div class="meth-flow-step ok" data-i18n="methodology.flow5">ALL 22 MODELS RETRAINED</div>
+      </div>
+
+      <div class="tooltip-wrap" style="margin:-6px 0 14px;" data-tooltip-i18n="methodology.leakageDetailsBody">
+        <button class="info-btn" type="button" data-i18n="methodology.leakageDetailsBtn">(i) HOW THE DUPLICATES WERE FOUND</button>
+      </div>
+
+      <p class="meth-text" data-i18n-html="methodology.leakage">
+        Before publishing, every test photo was checked against every training photo for accidental duplicates.
+        <strong>64 duplicate photos</strong> turned up in the training set — removed, then <strong>all 22 models
+        were retrained from scratch</strong>. The table below shows what changed.
+      </p>
+      <div class="panel-title" style="font-size:12px; margin:0 0 6px; padding:0; border:none;"><span data-i18n="leakageTable.title">ACCURACY BEFORE → AFTER CLEANUP</span></div>
+      <p class="muted" style="margin:0 0 8px; font-size:11px;" data-i18n="leakageTable.subtitle">All 22 models, same 715 test photos, before vs. after removing the 64 duplicates.</p>
+      <div class="table-scroll">
+        <table class="data-table" id="leakage-table">
+          <thead>
+            <tr>
+              <th data-i18n="col.model">MODEL</th>
+              <th data-i18n="leakageTable.before">BEFORE</th>
+              <th data-i18n="leakageTable.after">AFTER</th>
+              <th data-i18n="leakageTable.delta">Δ</th>
+            </tr>
+          </thead>
+          <tbody id="leakage-table-body">
+            <tr><td colspan="4" class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" id="leakage-summary-line" style="margin:8px 0 0; font-size:10px;"></p>
+    </div>
   </div>
 
   <div class="panel">
@@ -119,17 +186,29 @@
   </div>
 
   <div class="panel">
+    <div class="panel-title"><span data-i18n="umap.title">UMAP EMBEDDINGS</span> <span style="font-size:11px; font-weight:normal; color:var(--text-dim);" data-i18n="umap.subtitle">test set, 715 images · feature space projected to 2-D</span></div>
+    <div class="panel-body">
+      <div class="chart-panel-row two-col" id="umap-body">
+        <div class="loading-line pulse" data-i18n="modelComparison.loading">LOADING...</div>
+      </div>
+      <p class="muted" id="umap-note" style="margin:8px 0 0; font-size:10px; text-align:center;"></p>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-title" data-i18n="sourceFigures.title">SOURCE FIGURES</div>
     <div class="panel-body" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
       <span class="muted" style="flex:1 1 320px;" data-i18n="sourceFigures.intro">
-        All of the charts on this page are drawn straight from the real numbers behind them, not pasted-in
-        screenshots — that keeps them interactive and visually consistent with the rest of the site. One
-        exception: UMAP needs the actual 512-d/256-d feature vectors plus a fresh UMAP run, neither of
-        which the site ships, so that plot is still a real screenshot below (same for the plain sample
-        photos and the edge/HOG illustrations, which were never charts to begin with). For the exact
-        matplotlib output as it rendered in notebooks 01–09 — as evidence, not a redraw — open the gallery.
+        All of the charts on this page, UMAP included, are drawn straight from the real numbers behind
+        them, not pasted-in screenshots — that keeps them interactive and visually consistent with the
+        rest of the site. The plain sample photos and the edge/HOG illustrations below are the exception,
+        since they were never charts to begin with. For the exact matplotlib output as it rendered in
+        notebooks 01–09 — as evidence, not a redraw — open the gallery.
       </span>
       <button class="btn" type="button" id="btn-view-figures" data-i18n="sourceFigures.btn" data-i18n-hint="sourceFigures.btnHint">VIEW 11 SOURCE FIGURES</button>
+      <div class="tooltip-wrap" style="flex-basis:100%;" data-tooltip-i18n="sourceFigures.confusionNoteBody">
+        <button class="info-btn" type="button" data-i18n="sourceFigures.confusionNoteBtn">(i) WHY THE HISTOGRAM+SVM CONFUSION MATRIX LOOKS DIFFERENT</button>
+      </div>
     </div>
   </div>
 
@@ -166,7 +245,7 @@
 
   <footer class="crt-footer">
     <span data-i18n="footer.stats1">PEOTRAN_QC.EXE v1.0 — all metrics computed on the held-out test set (715 images)</span>
-    <span><a href="index.html" data-i18n="footer.stats.back">← BACK TO PLAYGROUND</a></span>
+    <span><a href="playground.html" data-i18n="footer.stats.back">← BACK TO PLAYGROUND</a></span>
   </footer>
 
 </div>

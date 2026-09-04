@@ -61,6 +61,12 @@
   --miss-bg: #f3caca;
   --frame-hover: #f5f5f5;
   --brutal-shadow: #000000;
+  /* PAUSE/RESUME toggle - darker gray than --face in light mode so it
+     stands out as a distinct control rather than blending into the other
+     buttons; dark mode gets the inverse (a bright gray) for the same
+     reason against a near-black panel. */
+  --pause-bg: #6b6b6b;
+  --pause-text: #ffffff;
   --font-ui: 'Win95UI', Tahoma, 'Segoe UI', Verdana, Geneva, sans-serif;
   --font-mono: Consolas, 'Courier New', monospace;
   --ease: cubic-bezier(.2,.7,.3,1);
@@ -115,6 +121,10 @@
   /* Match light mode's own neobrutalist hover shadow exactly (plain
      black) instead of tinting it with the dark palette's teal accent. */
   --brutal-shadow: #000000;
+  /* PAUSE/RESUME toggle - inverse of the light-mode treatment: a bright
+     gray so it stands out against the near-black dark-mode panel face. */
+  --pause-bg: #cfcfcf;
+  --pause-text: #161616;
 }
 
 /* Dark mode bevel borders - override the browser's automatic outset/inset
@@ -123,7 +133,8 @@
    flat rectangular border, same mitered corners, just without the glare. */
 :root[data-theme="dark"] :is(
   .crt-shell, .titlebar .tb-toggle, .titlebar .tb-btn, .toolbar a,
-  .btn, .kbd-hint kbd, .data-table thead th, .modal-box, .lightbox-box, .info-btn
+  .btn, .kbd-hint kbd, .data-table thead th, .modal-box, .lightbox-box, .info-btn,
+  .verdict-emoji-badge
 ) {
   border-style: solid;
   border-top-color: var(--highlight);
@@ -237,6 +248,7 @@ button { font-family: var(--font-ui); }
    wide strip of dead air on the right. */
 .page-playground .crt-shell { max-width: 900px; }
 .page-stats .crt-shell { max-width: 960px; }
+.page-about .crt-shell { max-width: 980px; }
 
 /* -------------------------------------------------------------------------
    Titlebar + toolbar
@@ -486,15 +498,121 @@ label.field-label {
   background: var(--input-bg);
   padding: 6px;
   display: inline-block;
+  /* All dataset photos are 256x256, so pin a definite width here rather
+     than leaving the frame to shrink-to-fit its content. Without this, the
+     img/canvas below's `width: 100%` has no definite containing-block
+     width to resolve against (an inline-block parent with no explicit
+     width can't provide one), so the browser falls back to rendering each
+     one at its OWN intrinsic pixel size instead of a shared, scaled size -
+     the real photo (256x256) and the dither working canvas (deliberately
+     downsampled to ~220x220 for the dissolve, see ditherSwap() in app.js)
+     then land at two different sizes, which is exactly what made the
+     whole frame visibly "shrink" the instant the dither swap kicked in. */
+  width: 256px;
+  max-width: 100%;
 }
 
 .img-frame img {
   display: block;
   width: 100%;
-  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
   margin: 0 auto;
   transition: opacity .18s var(--ease);
 }
+
+/* Idle auto-advance on the Playground record viewer swaps in this canvas
+   in place of the <img> and runs a randomized block-dither dissolve (see
+   ditherSwap() in app.js) - pixelated rendering keeps the block edges
+   crisp instead of letting the browser smooth them into a blur. Manual
+   PREV/NEXT/RANDOM navigation never touches this - it stays the quick
+   plain opacity fade on the <img> itself. */
+.dither-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.dither-canvas[hidden] { display: none; }
+
+/* `.img-frame img { display: block; }` above has higher CSS specificity
+   than the browser's built-in `[hidden] { display: none; }` rule, so
+   setting the <img>'s `hidden` property alone does NOT actually hide it -
+   it silently stays on screen while the canvas also becomes visible next
+   to it (the "old image doesn't go away, new one stacks below it" bug).
+   This rule wins that specificity fight explicitly. */
+.img-frame img[hidden] { display: none; }
+
+/* Idle auto-advance countdown - fills over the whole IDLE_DELAY_MS (see
+   app.js) so a person can see exactly how long until the viewer wanders on
+   its own. It hides entirely only when PAUSE is clicked (nothing is being
+   timed); while the dither dissolve itself plays, the track stays visible
+   and frozen full ("transitioning") rather than disappearing, so the
+   layout below it doesn't jump up and back down on every auto-advance. */
+.idle-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px auto 0;
+  max-width: 320px;
+}
+.idle-bar-track {
+  flex: 1 1 auto;
+  height: 4px;
+  min-width: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--shadow);
+  overflow: hidden;
+}
+.idle-bar-track[hidden] { display: none; }
+.idle-bar-fill { height: 100%; width: 0%; background: var(--ok); }
+.idle-bar-track.transitioning .idle-bar-fill {
+  background: var(--clf-a);
+  animation: idleBarPulse 0.9s ease-in-out infinite;
+}
+@keyframes idleBarPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+/* Pause/resume toggle - deliberately a different, more neutral gray than
+   the other nav buttons so it reads as a mode switch rather than a nav
+   action, and tuned per-theme so it stays visible against both a light and
+   a dark panel face rather than just inheriting --face. */
+#btn-autoplay-toggle {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  font-size: 11px;
+  background: var(--pause-bg);
+  color: var(--pause-text);
+}
+#btn-autoplay-toggle:hover { background: var(--pause-bg); filter: brightness(1.12); }
+#btn-autoplay-toggle.paused { color: var(--def); border-color: var(--def); background: var(--face); }
+
+/* Record-viewer button row and filter fields - left-aligned under the
+   (centered) image frame rather than centered themselves, and filters get
+   a label-above-select treatment instead of an inline label+select pair,
+   so the whole block reads as a tidy left-aligned toolbar instead of a
+   loose, centered cluster of controls. */
+.record-nav-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  margin: 10px auto 0;
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 320px;
+  margin: 12px auto 0;
+  text-align: left;
+}
+.filter-field { display: flex; flex-direction: column; gap: 3px; min-width: 110px; flex: 1 1 110px; }
+.filter-field .field-label { margin: 0; }
+.filter-field select { width: 100%; }
 
 .img-frame.clickable { cursor: zoom-in; }
 .img-frame.clickable:hover { background: var(--frame-hover); }
@@ -549,13 +667,63 @@ label.field-label {
   border: 2px inset var(--face);
   padding: 11px 13px;
   background: var(--face-light);
+  transition: opacity .5s var(--ease);
 }
+
+/* Held at opacity:0 for the whole auto-advance dither dissolve (see
+   fadeInfoPanels() in app.js), so the verdict/Grad-CAM panels fade back in
+   at the exact moment the new record's data is painted, instead of
+   snapping to the new content while the image is still mid-transition. */
+#gradcam-body { transition: opacity .5s var(--ease); }
 
 .verdict-label {
   font-size: 24px;
   font-weight: bold;
   letter-spacing: 0.5px;
   transition: color .15s var(--ease);
+}
+
+/* Predicted-vs-truth compare row: predicted label, a horizontal connector
+   (line - emoji badge - line) that stretches to fill whatever space is
+   left between the two labels, then the true label. Everything sits on
+   one flex row so the connector is always level with both label texts
+   and can never overflow the panel - it just shrinks/grows with it. */
+.verdict-compare {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.verdict-compare .verdict-label { white-space: nowrap; flex: 0 0 auto; }
+.verdict-connector {
+  flex: 1 1 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+}
+.verdict-connector-line {
+  flex: 1 1 auto;
+  min-width: 4px;
+  height: 0;
+  border-top: 2px dashed var(--shadow);
+}
+.verdict-emoji-badge {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 0 5px;
+  border: 2px outset var(--face);
+  background: var(--face-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .15s var(--ease);
+}
+.verdict-emoji-badge img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .verdict-label.ok { color: var(--ok); }
@@ -740,7 +908,7 @@ table.data-table {
 
 .data-table tbody tr { transition: background-color .1s var(--ease); }
 .data-table tbody tr:hover { background: var(--row-hover); cursor: pointer; }
-.data-table tbody tr.dl-row td:first-child { font-weight: bold; }
+.data-table tbody tr.rank-first td:first-child { font-weight: bold; }
 
 .table-scroll {
   overflow-x: auto;
@@ -778,7 +946,7 @@ table.data-table {
   color: var(--text-dim);
 }
 
-.chart-row.dl .chart-label { font-weight: bold; color: var(--text); }
+.chart-row.rank1 .chart-label { font-weight: bold; color: var(--text); }
 
 .chart-track { height: 13px; background: var(--input-bg); border: 2px inset var(--face); }
 .chart-fill {
@@ -867,6 +1035,278 @@ table.data-table {
 .confusion-grid .cg-cell.miss { background: var(--miss-bg); }
 
 /* -------------------------------------------------------------------------
+   Methodology panel - big stat cards + a labeled flow strip, so the
+   leakage-cleanup story reads as a picture first and a paragraph second.
+   ------------------------------------------------------------------------- */
+.meth-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+.meth-stat {
+  flex: 1 1 150px;
+  border: 2px outset var(--face);
+  border-left: 6px solid var(--stat-color, var(--clf-a));
+  background: var(--face-light);
+  padding: 10px 12px;
+}
+.meth-stat-num {
+  font-size: 34px;
+  font-weight: bold;
+  line-height: 1;
+  color: var(--stat-color, var(--clf-a));
+  /* Pinned to VT323 (the site's pixel/terminal font) regardless of
+     language - in English mode var(--font-mono) resolves to a smooth
+     Consolas/Courier stack, which made these big digits look out of place
+     next to the rest of the retro-pixel UI. VT323 keeps them consistently
+     blocky/pixelated in both English and Vietnamese. */
+  font-family: 'VT323', Consolas, 'Courier New', monospace;
+}
+.meth-stat-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--text-dim);
+  margin-top: 6px;
+  letter-spacing: 0.2px;
+}
+.meth-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.meth-text strong { color: var(--tooltip-em); }
+.meth-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px dashed var(--shadow);
+  background: var(--face-light);
+}
+.meth-flow-step {
+  border: 2px outset var(--face);
+  background: var(--input-bg);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+}
+.meth-flow-step.alert { border-color: var(--def); color: var(--def); box-shadow: inset 0 0 0 1px var(--def); }
+.meth-flow-step.ok { border-color: var(--ok); color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+.meth-flow-arrow {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-dim);
+  flex: 0 0 auto;
+}
+@media (max-width: 700px) {
+  .meth-flow { flex-direction: column; align-items: stretch; }
+  .meth-flow-arrow { transform: rotate(90deg); text-align: center; }
+  .meth-flow-step { white-space: normal; }
+}
+
+/* -------------------------------------------------------------------------
+   About page (01_ABOUT) - a "welcome" story page: hero banner, dataset
+   sample photos, and a grid of short technique cards, all built from the
+   same panel/bevel/neobrutalist-hover language as the rest of the site so
+   it reads as one more room in the same app rather than a bolted-on
+   landing page.
+   ------------------------------------------------------------------------- */
+
+.hero-banner {
+  border: 2px outset var(--face);
+  background: linear-gradient(120deg, var(--titlebar-from), var(--titlebar-to));
+  color: #ffffff;
+  padding: 22px 24px 24px;
+  margin: 0 4px 14px;
+}
+.hero-boot {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 10px;
+}
+.hero-title {
+  font-size: 34px;
+  font-weight: bold;
+  line-height: 1.15;
+  letter-spacing: 0.4px;
+  margin: 0 0 10px;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+}
+.hero-subtitle {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.94);
+  max-width: 760px;
+  margin: 0 0 18px;
+}
+.hero-cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-cta {
+  font-family: var(--font-ui);
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--face-light);
+  border: 2px outset var(--face);
+  padding: 8px 16px;
+  transition: background-color .1s linear, transform .1s linear, box-shadow .1s linear;
+}
+.hero-cta:hover { background: #ffffff; transform: translate(-2px, -2px); box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4); }
+.hero-cta:active { transform: translate(0, 0); box-shadow: none; }
+
+/* Dataset sample photos - the matplotlib grids ship on a plain white
+   background (see js/stats.js's evidence figures), so they get the same
+   "framed print" treatment as everywhere else those figures appear:
+   a bordered frame with the page's own input background peeking through,
+   never a bare image floating on the panel face. */
+.sample-pair { display: flex; flex-wrap: wrap; gap: 16px; margin: 14px 0 4px; }
+.sample-card {
+  flex: 1 1 260px;
+  border: 2px outset var(--face);
+  border-left: 6px solid var(--stat-color, var(--ok));
+  background: var(--face-light);
+  padding: 10px 12px;
+}
+.sample-card.ok { --stat-color: var(--ok); }
+.sample-card.def { --stat-color: var(--def); }
+.sample-card img {
+  display: block;
+  width: 100%;
+  border: 2px inset var(--face);
+  background: #ffffff;
+}
+.sample-card-caption {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* Technique/model chips - feature extraction methods, classical models,
+   deep learning. Each chip is a compact button; the description + doc
+   link live in a hover/click tooltip (same .tooltip-wrap/.info-btn
+   pattern used by the Methodology and SOURCE FIGURES info buttons) so
+   the page doesn't drown new visitors in always-visible paragraphs. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0;
+}
+.chip-btn {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.2px;
+  color: var(--text);
+  background: var(--face);
+  border: 2px outset var(--face);
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: background-color .1s linear, transform .1s linear, box-shadow .1s linear;
+}
+.chip-btn:hover { background: var(--face-light); transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--brutal-shadow); }
+.chip-btn:active { transform: translate(0, 0); box-shadow: none; }
+.chip-btn.model-a { border-left: 4px solid var(--clf-a); }
+.chip-btn.model-b { border-left: 4px solid var(--clf-b); }
+.chip-btn.model-c { border-left: 4px solid var(--clf-c); }
+.chip-btn.dl-a { border-left: 4px solid var(--clf-a); }
+.chip-btn.dl-b { border-left: 4px solid var(--ok); }
+
+/* Spec cards - feature extraction / classical model / deep learning boxes,
+   each with its own real visualization, a short "terminal readout" formula
+   line, a one-sentence description, and a doc link. Every technique gets
+   its own dedicated cell instead of a shared paragraph grid. */
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin: 4px 0;
+}
+.spec-grid.wide { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.spec-card {
+  display: flex;
+  flex-direction: column;
+  border: 2px outset var(--face);
+  background: var(--face-light);
+  overflow: hidden;
+}
+.spec-card.model-a { border-left: 6px solid var(--clf-a); }
+.spec-card.model-b { border-left: 6px solid var(--clf-b); }
+.spec-card.model-c { border-left: 6px solid var(--clf-c); }
+.spec-card.dl-a { border-left: 6px solid var(--clf-a); }
+.spec-card.dl-b { border-left: 6px solid var(--ok); }
+.spec-card-img {
+  display: block;
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  background: #ffffff;
+  border-bottom: 2px solid var(--shadow);
+}
+.spec-grid.wide .spec-card-img { height: 165px; }
+.spec-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 9px 11px 10px;
+}
+.spec-card-title {
+  font-weight: bold;
+  font-size: 12.5px;
+  letter-spacing: 0.3px;
+  margin: 0 0 5px;
+}
+/* The "terminal readout" formula strip - always dark regardless of site
+   theme (like a real terminal), echoing the brand's green boot-prompt
+   accent. Horizontally scrolls instead of wrapping/overflowing on a
+   narrow card. */
+.spec-formula {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: #3dff5a;
+  background: #0a0f0a;
+  border: 1px solid #1c3a1c;
+  padding: 5px 8px;
+  margin: 0 0 7px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.spec-card-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 0 0 8px;
+  flex: 1;
+}
+.spec-card-link { font-size: 11px; align-self: flex-start; }
+.spec-card-link + .spec-card-link { margin-left: 10px; }
+
+.about-lead {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+.about-lead code {
+  font-family: var(--font-mono);
+  background: var(--input-bg);
+  border: 1px solid var(--shadow);
+  padding: 0 4px;
+}
+.about-lead strong { color: var(--tooltip-em); }
+.about-lead a { font-weight: bold; }
+
+/* -------------------------------------------------------------------------
    Native SVG charts (line chart, box plot) - drawn by the site itself
    directly from real numbers, not screenshots.
    ------------------------------------------------------------------------- */
@@ -877,6 +1317,18 @@ table.data-table {
   display: flex;
   flex-direction: column;
   gap: 22px;
+}
+/* Used by the UMAP panel: its two scatter plots are a matched pair meant
+   to be compared side by side, unlike the single full-width charts above,
+   so they share one row evenly instead of stacking. */
+.chart-panel-row.two-col {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.chart-panel-row.two-col .chart-block { flex: 1 1 260px; }
+@media (max-width: 640px) {
+  .chart-panel-row.two-col { flex-direction: column; }
 }
 .chart-block { min-width: 0; }
 .chart-block-title {
@@ -898,6 +1350,7 @@ table.data-table {
 .chart-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; font-size: 11px; }
 .chart-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--text-dim); }
 .chart-swatch { width: 10px; height: 10px; display: inline-block; border: 1px solid var(--shadow); }
+.chart-swatch-x { border: none; font-weight: bold; font-size: 14px; line-height: 10px; text-align: center; }
 
 /* Evidence-image strip, shown directly under a chart's own note - the
    real notebook screenshot(s) most relevant to that specific chart,
@@ -969,6 +1422,16 @@ table.data-table {
   color: var(--titlebar-text);
   font-weight: bold;
   padding: 5px 6px 5px 10px;
+}
+
+/* `.modal-body` had no padding rule of its own at all (the `.panel .panel-body`
+   padding rule doesn't reach it - its actual parent is `.modal-box`, not
+   `.panel`), so the spec list sat flush against the modal's border. Extra
+   right padding compensates for the modal's own scroll bar (`.modal-box`
+   is `overflow-y: auto`), which otherwise eats into the same space and
+   makes the right edge look even tighter than the left. */
+.modal-body {
+  padding: 14px 24px 18px 18px;
 }
 
 .modal-body dl {
